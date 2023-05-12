@@ -4,7 +4,7 @@ import logging
 import torchvision
 from torch import nn
 from typing import Tuple
-import timm 
+#import timm 
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
@@ -50,13 +50,14 @@ def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
     try:  # Newer versions of pytorch require to pass weights=weights_module.DEFAULT
         if backbone_name.startswith("vit"):
             # I can create the model accordingly, based on pretrained weights
-            model = timm.create_model(backbone_name, pretrained=True)
+            #model = timm.create_model(backbone_name, pretrained=True)
+            model = torchvision.models.vit_base_patch16_224(pretrained=True)
         else: #Non VIT architectures
             weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
             model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
     except (ImportError, AttributeError):  # Older versions of pytorch require to pass pretrained=True
         if backbone_name.startswith("vit"):
-            model = timm.create_model(backbone_name, pretrained=True)
+            model = torchvision.models.vit_base_patch16_224(pretrained=True)
         else:
             model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
     return model
@@ -71,28 +72,29 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
                 params.requires_grad = False
         logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
         layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
-    
+        backbone = torch.nn.Sequential(*layers) 
+        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
+
     #UPDATE: Handle the case for ViT
-    elif backbone_name.startswith("vit"):
-        backbone = get_pretrained_torchvision_model(backbone_name)
+    elif backbone_name == "vit_base_patch16_224":
+        import torchvision
+        backbone = torchvision.models.vit_base_patch16_224(pretrained=True)
         for p in backbone.parameters():
             p.requires_grad = False
         logging.debug(f"Train the last layers of the {backbone_name}, freeze the previous ones")
-        
         layers = list(backbone.children())[:-2]  # Remove the head of the model.
         backbone = torch.nn.Sequential(*layers)
-        
-        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
-        
+        features_dim = 768
+
     elif backbone_name == "VGG16":
         layers = list(backbone.features.children())[:-2]  # Remove avg pooling and FC layer
         for layer in layers[:-5]:
             for p in layer.parameters():
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
-    
-    backbone = torch.nn.Sequential(*layers)
-    
-    features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
+        backbone = torch.nn.Sequential(*layers) 
+        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
+    else:
+        raise ValueError(f"Invalid backbone name: {backbone_name}")
     
     return backbone, features_dim
