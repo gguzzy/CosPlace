@@ -81,12 +81,13 @@ logging.info(f"There are {len(groups[0])} classes for the first group, " +
 
 
 if args.augmentation_device == "cuda":
+    
     gpu_augmentation = T.Compose([
             augmentations.DeviceAgnosticColorJitter(brightness=args.brightness,
                                                     contrast=args.contrast,
                                                     saturation=args.saturation,
                                                     hue=args.hue),
-            augmentations.DeviceAgnosticRandomResizedCrop([512, 512],
+            augmentations.DeviceAgnosticRandomResizedCrop([224, 224],
                                                           scale=[1-args.random_resized_crop, 1]),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
