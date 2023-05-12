@@ -5,7 +5,6 @@ import torchvision
 from torch import nn
 from typing import Tuple
 import timm 
-import wget
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
@@ -16,7 +15,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet101": 2048,
     "ResNet152": 2048,
     "VGG16": 512,
-    "vit_b_16": 768,
+    "vit_base_patch16_224_in21k": 768,
 }
 
 
@@ -46,32 +45,13 @@ class GeoLocalizationNet(nn.Module):
 
 def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
     """This function takes the name of a backbone and returns the corresponding pretrained
-    model from torchvision. Examples of backbone_name are 'VGG16' or 'ResNet18' or 'vit_deit_base_patch16_224'
+    model from torchvision. Examples of backbone_name are 'VGG16' or 'ResNet18' or 'vit_base'
     """
     try:  # Newer versions of pytorch require to pass weights=weights_module.DEFAULT
         if backbone_name.startswith("vit"):
-            # I can create the model accordingly, based on pretrained weights
+             #bard insert VIT here
             #model = timm.create_model(backbone_name, pretrained=True)
-            link_root = "https://storage.googleapis.com/vit_models/augreg/"
-            filename = 'B_16-i21k-300ep-lr_0.001-aug_medium1-wd_0.1-do_0.0-sd_0.0--imagenet2012-steps_20k-lr_0.03-res_224.npz'
-            model = timm.create_model(backbone_name, num_classes=1024)
-
-            # Non-default checkpoints need to be loaded from local files.
-            if not tf.io.gfile.exists(filename):
-                print('Pre-trained weights not found. Downloading...')
-                print(link_root+filename)
-                wget.download(link_root + filename)
-                timm.models.load_checkpoint(model, filename)
-                print("**** Loaded ViT pre-trained ****")
-            for name, child in model.named_children():
-                #print(f"Name: {name}")
-                #print(f"child: {child}")
-                if name.startswith("head"):
-                    print("Trainable block: ", child)
-                    break
-                for params in child.parameters():
-                    params.requires_grad = False
-            print("**** Model loaded and freezed, except last layer ****")
+            print("hi")
 
 
         else: #Non VIT architectures
@@ -79,27 +59,8 @@ def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
             model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
     except (ImportError, AttributeError):  # Older versions of pytorch require to pass pretrained=True
         if backbone_name.startswith("vit"):
-            
-            link_root = "https://storage.googleapis.com/vit_models/augreg/"
-            filename = 'B_16-i21k-300ep-lr_0.001-aug_medium1-wd_0.1-do_0.0-sd_0.0--imagenet2012-steps_20k-lr_0.03-res_224.npz'
-            model = timm.create_model(backbone_name, num_classes=1024)
-
-            # Non-default checkpoints need to be loaded from local files.
-            if not tf.io.gfile.exists(filename):
-                print('Pre-trained weights not found. Downloading...')
-                print(link_root+filename)
-                wget.download(link_root + filename)
-                timm.models.load_checkpoint(model, filename)
-                print("**** Loaded ViT pre-trained ****")
-            for name, child in model.named_children():
-                #print(f"Name: {name}")
-                #print(f"child: {child}")
-                if name.startswith("head"):
-                    print("Trainable block: ", child)
-                    break
-                for params in child.parameters():
-                    params.requires_grad = False
-            print("**** Model loaded and freezed, except last layer ****")
+            # bard insert code here if necessary
+            print('hi')
 
         else:
             model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
