@@ -39,8 +39,6 @@ class GeoLocalizationNet(nn.Module):
         )
         
     def forward(self, x):
-        if self.resize is not None:
-            x = self.resize(x)
         x = self.backbone(x)
         x = self.aggregation(x)
         return x
