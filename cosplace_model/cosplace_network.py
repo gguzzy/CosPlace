@@ -49,19 +49,13 @@ def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
     """
     try:  # Newer versions of pytorch require to pass weights=weights_module.DEFAULT
         if backbone_name.startswith("vit"):
-             #bard insert VIT here
-            #model = timm.create_model(backbone_name, pretrained=True)
-            print("hi")
-
-
+            model = timm.create_model(backbone_name, pretrained=True)
         else: #Non VIT architectures
             weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
             model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
     except (ImportError, AttributeError):  # Older versions of pytorch require to pass pretrained=True
         if backbone_name.startswith("vit"):
-            # bard insert code here if necessary
-            print('hi')
-
+            model = timm.create_model(backbone_name, pretrained=True)
         else:
             model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
     return model
@@ -84,9 +78,10 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
         for p in backbone.parameters():
             p.requires_grad = False
         logging.debug(f"Train the last layers of the {backbone_name}, freeze the previous ones")
-        layers = list(backbone.children())[:-2]  # Remove the head of the model.
-        backbone = torch.nn.Sequential(*layers)
-        features_dim = 768
+        # ViT does not have 'children' in the same sense as ResNet or VGG. The final layer is in 'head'.
+        # So, we do not need to remove the last two layers, instead we replace the 'head' with an Identity layer.
+        backbone.head = nn.Identity()
+        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
 
     elif backbone_name == "VGG16":
         layers = list(backbone.features.children())[:-2]  # Remove avg pooling and FC layer
