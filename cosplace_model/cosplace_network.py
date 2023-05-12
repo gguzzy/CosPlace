@@ -37,18 +37,13 @@ class GeoLocalizationNet(nn.Module):
             nn.Linear(features_dim, fc_output_dim),
             L2Norm()
         )
-        if backbone.startswith("vit"): # Add resizing for Vision Transformer
-            self.resize = nn.Upsample((224, 224), mode='bilinear', align_corners=False)
-        else:
-            self.resize = None
-    
+        
     def forward(self, x):
         if self.resize is not None:
             x = self.resize(x)
         x = self.backbone(x)
         x = self.aggregation(x)
         return x
-
 
 def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
     """This function takes the name of a backbone and returns the corresponding pretrained
