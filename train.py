@@ -43,7 +43,8 @@ model = model.to(args.device).train()
 
 #### Optimizer
 criterion = torch.nn.CrossEntropyLoss()
-model_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+#model_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+model_optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 
 #### Datasets
 groups = [TrainDataset(args, args.train_set_folder, M=args.M, alpha=args.alpha, N=args.N, L=args.L,
@@ -82,12 +83,13 @@ logging.info(f"There are {len(groups[0])} classes for the first group, " +
 
 if args.augmentation_device == "cuda":
     
+    #changed augmentations.DeviceAgnosticRandomResizedCrop(512, 512] to [224,224]
     gpu_augmentation = T.Compose([
             augmentations.DeviceAgnosticColorJitter(brightness=args.brightness,
                                                     contrast=args.contrast,
                                                     saturation=args.saturation,
                                                     hue=args.hue),
-            augmentations.DeviceAgnosticRandomResizedCrop([224, 224],
+            augmentations.DeviceAgnosticRandomResizedCrop([512, 512],
                                                           scale=[1-args.random_resized_crop, 1]),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])

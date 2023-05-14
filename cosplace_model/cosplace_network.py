@@ -4,20 +4,19 @@ import logging
 import torchvision
 from torch import nn
 from typing import Tuple
-import timm 
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
 # The number of channels in the last convolutional layer, the one before average pooling
+# Added `"vit_base_patch16_224_in21k"` to the `CHANNELS_NUM_IN_LAST_CONV` dictionary.
 CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet18": 512,
     "ResNet50": 2048,
     "ResNet101": 2048,
     "ResNet152": 2048,
     "VGG16": 512,
-    "vit_base_patch16_224_in21k": 768,
+    "vit_base_patch16_224_in21k": 192,
 }
-
 
 class GeoLocalizationNet(nn.Module):
     def __init__(self, backbone : str, fc_output_dim : int):
@@ -37,30 +36,29 @@ class GeoLocalizationNet(nn.Module):
             nn.Linear(features_dim, fc_output_dim),
             L2Norm()
         )
-        
+    
     def forward(self, x):
         x = self.backbone(x)
         x = self.aggregation(x)
         return x
 
+
 def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
     """This function takes the name of a backbone and returns the corresponding pretrained
-    model from torchvision. Examples of backbone_name are 'VGG16' or 'ResNet18' or 'vit_base'
+    model from torchvision. Examples of backbone_name are 'VGG16' or 'ResNet18'
     """
     try:  # Newer versions of pytorch require to pass weights=weights_module.DEFAULT
-        if backbone_name.startswith("vit"):
-            model = timm.create_model(backbone_name, pretrained=True)
-        else: #Non VIT architectures
-            weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
-            model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
+        weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
+        model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
     except (ImportError, AttributeError):  # Older versions of pytorch require to pass pretrained=True
-        if backbone_name.startswith("vit"):
-            model = timm.create_model(backbone_name, pretrained=True)
-        else:
-            model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
+        model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
     return model
 
+
 def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
+    """This function returns a backbone network and the number of output features.
+    For ResNet backbones, the first three layers are frozen. For VGG16, the first four layers are frozen. For ViT, no layers are frozen.
+    """
     backbone = get_pretrained_torchvision_model(backbone_name)
     if backbone_name.startswith("ResNet"):
         for name, child in backbone.named_children():
@@ -70,28 +68,20 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
                 params.requires_grad = False
         logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
         layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
-        backbone = torch.nn.Sequential(*layers) 
-        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
-
-    #UPDATE: Handle the case for ViT
-    elif backbone_name.startswith("vit"):
-        for p in backbone.parameters():
-            p.requires_grad = False
-        logging.debug(f"Train the last layers of the {backbone_name}, freeze the previous ones")
-        # ViT does not have 'children' in the same sense as ResNet or VGG. The final layer is in 'head'.
-        # So, we do not need to remove the last two layers, instead we replace the 'head' with an Identity layer.
-        backbone.head = nn.Identity()
-        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
-
+    
     elif backbone_name == "VGG16":
         layers = list(backbone.features.children())[:-2]  # Remove avg pooling and FC layer
         for layer in layers[:-5]:
             for p in layer.parameters():
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
-        backbone = torch.nn.Sequential(*layers) 
-        features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
-    else:
-        raise ValueError(f"Invalid backbone name: {backbone_name}")
+
+    elif backbone_name == "vit_base_patch16_224_in21k":
+        layers = list(backbone.children())[:-1]  # Remove classifier
+        logging.debug("Train all layers of the ViT, no layers are frozen")
+    
+    backbone = torch.nn.Sequential(*layers)
+    
+    features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
     
     return backbone, features_dim
