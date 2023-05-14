@@ -76,7 +76,7 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
 
-    elif backbone_name == "vit_base_patch16_224_in21k":
+    elif backbone_name.startswith("vit"):
         layers = list(backbone.children())[:-1]  # Remove classifier
         logging.debug("Train all layers of the ViT, no layers are frozen")
     
