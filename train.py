@@ -18,6 +18,9 @@ from cosplace_model import cosplace_network
 from datasets.test_dataset import TestDataset
 from datasets.train_dataset import TrainDataset
 
+import timm 
+
+
 torch.backends.cudnn.benchmark = True  # Provides a speedup
 
 args = parser.parse_arguments()
@@ -30,7 +33,10 @@ logging.info(f"Arguments: {args}")
 logging.info(f"The outputs are being saved in {args.output_folder}")
 
 #### Model
-model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim)
+#model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim)
+#UPDATE
+model = GeoLocalizationNet(backbone=Timm.create_model(args.backbone, pretrained=True))
+
 
 logging.info(f"There are {torch.cuda.device_count()} GPUs and {multiprocessing.cpu_count()} CPUs.")
 
@@ -111,8 +117,11 @@ for epoch_num in range(start_epoch_num, args.epochs_num):
                                             pin_memory=(args.device == "cuda"), drop_last=True)
     
     dataloader_iterator = iter(dataloader)
-    model = model.train()
-    
+    #model = model.train()
+    #UPDATE
+
+    model.train(unfreeze_last_layer=True)
+
     epoch_losses = np.zeros((0, 1), dtype=np.float32)
     for iteration in tqdm(range(args.iterations_per_epoch), ncols=100):
         images, targets, _ = next(dataloader_iterator)

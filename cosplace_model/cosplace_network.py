@@ -4,7 +4,6 @@ import logging
 import torchvision
 from torch import nn
 from typing import Tuple
-import timm 
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
@@ -16,7 +15,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet101": 2048,
     "ResNet152": 2048,
     "VGG16": 512,
-    "vit_base_patch16_224_in21k": 192,
+    "vit_base_patch16_224": 192,
 }
 
 class GeoLocalizationNet(nn.Module):
@@ -49,11 +48,8 @@ def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
     model from torchvision. Examples of backbone_name are 'VGG16' or 'ResNet18'
     """
     try:  # Newer versions of pytorch require to pass weights=weights_module.DEFAULT
-        if backbone_name == "vit_base_patch16_224_in21k":
-            model = timm.create_model(backbone_name, pretrained=True)
-        else:
-            weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
-            model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
+        weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
+        model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
     except (ImportError, AttributeError):  # Older versions of pytorch require to pass pretrained=True
         model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
     return model
@@ -79,10 +75,6 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
             for p in layer.parameters():
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
-
-    elif backbone_name == "vit_base_patch16_224_in21k":
-        layers = list(backbone.children())[:-1]  # Remove classifier
-        logging.debug("Train all layers of the ViT, no layers are frozen")
     
     backbone = torch.nn.Sequential(*layers)
     
