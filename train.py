@@ -35,7 +35,7 @@ logging.info(f"The outputs are being saved in {args.output_folder}")
 #### Model
 #model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim)
 #UPDATE
-model = cosplace_network.GeoLocalizationNet(backbone=timm.create_model(args.backbone, pretrained=True))
+model = cosplace_network.GeoLocalizationNet(backbone=timm.create_model(args.backbone, pretrained=True),  fc_output_dim=128)
 
 
 logging.info(f"There are {torch.cuda.device_count()} GPUs and {multiprocessing.cpu_count()} CPUs.")
