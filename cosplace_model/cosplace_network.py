@@ -14,6 +14,8 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet101": 2048,
     "ResNet152": 2048,
     "VGG16": 512,
+    "vit_b_32": 768,
+    "maxvit_t": 64,
 }
 
 
@@ -72,6 +74,21 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
     
+    #UPGRADE: new models below
+    elif backbone_name == "vit_b_32":
+        for name, child in backbone.named_children():
+            for params in child.parameters():
+                params.requires_grad = False
+        logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
+        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
+
+    elif backbone_name.startswith("maxvit_t"): # still to try it out
+        layers = list(backbone.children())[:-2] # Remove avg pooling and FC layer
+        for x in layers:
+            for p in x.parameters():
+                p.requires_grad = False # freeze all the layers except the last three blocks
+        logging.debug("Train last three layers of Swin, freeze the previous ones")
+
     backbone = torch.nn.Sequential(*layers)
     
     features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
