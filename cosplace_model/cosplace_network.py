@@ -8,15 +8,16 @@ from typing import Tuple
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
 # The number of channels in the last convolutional layer, the one before average pooling
-# Added `"vit_base_patch16_224_in21k"` to the `CHANNELS_NUM_IN_LAST_CONV` dictionary.
 CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet18": 512,
     "ResNet50": 2048,
     "ResNet101": 2048,
     "ResNet152": 2048,
     "VGG16": 512,
-    "vit_base_patch16_224": 192,
+    "vit_b_32": 768,
+    "maxvit_t": 64,
 }
+
 
 class GeoLocalizationNet(nn.Module):
     def __init__(self, backbone : str, fc_output_dim : int):
@@ -56,9 +57,6 @@ def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
 
 
 def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
-    """This function returns a backbone network and the number of output features.
-    For ResNet backbones, the first three layers are frozen. For VGG16, the first four layers are frozen. For ViT, no layers are frozen.
-    """
     backbone = get_pretrained_torchvision_model(backbone_name)
     if backbone_name.startswith("ResNet"):
         for name, child in backbone.named_children():
@@ -76,6 +74,21 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
     
+    #UPGRADE: new models below
+    elif backbone_name == "vit_b_32":
+        for name, child in backbone.named_children():
+            for params in child.parameters():
+                params.requires_grad = False
+        logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
+        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
+
+    elif backbone_name.startswith("maxvit_t"): ##NOT WORKING
+        layers = list(backbone.children())[:-2] # Remove avg pooling and FC layer
+        for x in layers:
+            for p in x.parameters():
+                p.requires_grad = False # freeze all the layers except the last three blocks
+        logging.debug("Train last three layers of Swin, freeze the previous ones")
+
     backbone = torch.nn.Sequential(*layers)
     
     features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]

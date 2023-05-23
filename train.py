@@ -18,9 +18,6 @@ from cosplace_model import cosplace_network
 from datasets.test_dataset import TestDataset
 from datasets.train_dataset import TrainDataset
 
-import timm 
-
-
 torch.backends.cudnn.benchmark = True  # Provides a speedup
 
 args = parser.parse_arguments()
@@ -33,10 +30,7 @@ logging.info(f"Arguments: {args}")
 logging.info(f"The outputs are being saved in {args.output_folder}")
 
 #### Model
-#model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim)
-#UPDATE
-model = cosplace_network.GeoLocalizationNet(backbone=timm.create_model(args.backbone, pretrained=True),  fc_output_dim=128)
-
+model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim)
 
 logging.info(f"There are {torch.cuda.device_count()} GPUs and {multiprocessing.cpu_count()} CPUs.")
 
@@ -49,8 +43,7 @@ model = model.to(args.device).train()
 
 #### Optimizer
 criterion = torch.nn.CrossEntropyLoss()
-#model_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-model_optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+model_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
 #### Datasets
 groups = [TrainDataset(args, args.train_set_folder, M=args.M, alpha=args.alpha, N=args.N, L=args.L,
@@ -64,7 +57,7 @@ logging.info(f"The {len(groups)} groups have respectively the following number o
 logging.info(f"The {len(groups)} groups have respectively the following number of images {[g.get_images_num() for g in groups]}")
 
 val_ds = TestDataset(args.val_set_folder, positive_dist_threshold=args.positive_dist_threshold)
-test_ds = TestDataset(args.test_set_folder, queries_folder="queries",
+test_ds = TestDataset(args.test_set_folder, queries_folder="queries_v1",
                       positive_dist_threshold=args.positive_dist_threshold)
 logging.info(f"Validation set: {val_ds}")
 logging.info(f"Test set: {test_ds}")
@@ -88,8 +81,6 @@ logging.info(f"There are {len(groups[0])} classes for the first group, " +
 
 
 if args.augmentation_device == "cuda":
-    
-    #changed augmentations.DeviceAgnosticRandomResizedCrop(512, 512] to [224,224]
     gpu_augmentation = T.Compose([
             augmentations.DeviceAgnosticColorJitter(brightness=args.brightness,
                                                     contrast=args.contrast,
@@ -117,11 +108,8 @@ for epoch_num in range(start_epoch_num, args.epochs_num):
                                             pin_memory=(args.device == "cuda"), drop_last=True)
     
     dataloader_iterator = iter(dataloader)
-    #model = model.train()
-    #UPDATE
-
-    model.train(unfreeze_last_layer=True)
-
+    model = model.train()
+    
     epoch_losses = np.zeros((0, 1), dtype=np.float32)
     for iteration in tqdm(range(args.iterations_per_epoch), ncols=100):
         images, targets, _ = next(dataloader_iterator)
