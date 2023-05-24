@@ -15,10 +15,12 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet101": 2048,
     "ResNet152": 2048,
     "VGG16": 512,
-    "vit_b_32": 768,
-    "maxvit_t": 64,
-    "vit_h_14": 1280,
     "vit_b_16": 768,
+    "vit_b_32": 768,
+    "vit_l_16": 1024,
+    "vit_l_32": 1024,
+    "vit_h_14": 1280,
+    "maxvit_t": 64,
 }
 
 
