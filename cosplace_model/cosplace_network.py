@@ -8,6 +8,7 @@ from typing import Tuple
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
 # The number of channels in the last convolutional layer, the one before average pooling
+#UPDATE: for ViT it corresponds to number of hidden size, dimensionality of patch embeddings
 CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet18": 512,
     "ResNet50": 2048,
@@ -16,6 +17,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "VGG16": 512,
     "vit_b_32": 768,
     "maxvit_t": 64,
+    "vit_h_14": 1280
 }
 
 
