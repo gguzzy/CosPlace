@@ -75,12 +75,16 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
     
     #UPGRADE: new models below
-    elif backbone_name == "vit_b_32":
-        for name, child in backbone.named_children():
-            for params in child.parameters():
-                params.requires_grad = False
-        logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
-        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
+    # ViT architectures models, vit_b_16 or VIT_H_14
+    elif backbone_name.startswith("vit"): 
+        # Freeze all parameters
+        for params in backbone.parameters():
+            params.requires_grad = False
+        logging.debug(f"Train only the classification layer of the {backbone_name}, freeze the other ones")
+        # Unfreeze the classification layer (assuming it's named 'head')
+        if hasattr(backbone, 'head'):
+            for params in backbone.head.parameters():
+                params.requires_grad = True
 
     elif backbone_name.startswith("maxvit_t"): ##NOT WORKING
         layers = list(backbone.children())[:-2] # Remove avg pooling and FC layer
