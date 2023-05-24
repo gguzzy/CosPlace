@@ -17,7 +17,8 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "VGG16": 512,
     "vit_b_32": 768,
     "maxvit_t": 64,
-    "vit_h_14": 1280
+    "vit_h_14": 1280,
+    "vit_b_16": 768,
 }
 
 
@@ -77,8 +78,8 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
     
     #UPGRADE: new models below
-    # ViT architectures models, vit_b_16 or VIT_H_14
-    elif backbone_name == "vit_b_32" or backbone_name == "vit_h_14" :
+    # ViT architectures models, vit_b_16 or VIT_H_14 or vit_b_16
+    elif backbone_name.startswith("vit"):
         for name, child in backbone.named_children():
             for params in child.parameters():
                 params.requires_grad = False
