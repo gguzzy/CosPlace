@@ -83,10 +83,15 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
     # ViT architectures models, vit_b_16 or VIT_H_14 or vit_b_16
     elif backbone_name.startswith("vit"):
         for name, child in backbone.named_children():
+            if name == "head":
+                continue
             for params in child.parameters():
                 params.requires_grad = False
-        logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
-        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
+        # we train the last layer
+        # Train the last layer
+        backbone.head.parameters().requires_grad = True
+        logging.debug(f"Training only the last layer {backbone_name}, freezing the previous ones")
+        layers = list(backbone.children())[:-1] 
 
     elif backbone_name.startswith("maxvit_t"): ##NOT WORKING
         layers = list(backbone.children())[:-2] # Remove avg pooling and FC layer
