@@ -86,7 +86,7 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
             for params in child.parameters():
                 params.requires_grad = False
         logging.debug(f"Train only last layer of the {backbone_name}, freezing the previous ones")
-        layers = list(backbone.children())[:-2]  # Remove last transformer block
+        layers = list(backbone.children())[:-1]  # Remove last transformer block
         
     elif backbone_name.startswith("maxvit_t"): ##NOT WORKING
         layers = list(backbone.children())[:-2] # Remove avg pooling and FC layer
