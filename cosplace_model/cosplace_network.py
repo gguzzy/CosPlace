@@ -73,7 +73,7 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
         layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
     
     elif backbone_name == "VGG16":
-        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
+        layers = list(backbone.features.children())[:-2]  # Remove avg pooling and FC layer
         for layer in layers[:-5]:
             for p in layer.parameters():
                 p.requires_grad = False
@@ -82,7 +82,7 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
     #UPGRADE: new models below
     # ViT architectures models, vit_b_16 or VIT_H_14 or vit_b_16
     elif backbone_name.startswith("vit"):
-        layers = list(backbone.features.children())[:-1]  # Remove last transformer block
+        layers = list(backbone.children())[:-1]  # Remove last transformer block
         for layer in layers:
             for params in layer.parameters():
                 params.requires_grad = False
