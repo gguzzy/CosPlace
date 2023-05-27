@@ -6,7 +6,7 @@ import multiprocessing
 from datetime import datetime
 
 import test
-import parser
+import parserCustom
 import commons
 from cosplace_model import cosplace_network
 from datasets.test_dataset import TestDataset

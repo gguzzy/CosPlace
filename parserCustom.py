@@ -14,7 +14,9 @@ def parse_arguments(is_training: bool = True):
     parser.add_argument("--min_images_per_class", type=int, default=10, help="_")
     # Model parameters
     parser.add_argument("--backbone", type=str, default="ResNet18",
-                        choices=["VGG16", "ResNet18", "ResNet50", "ResNet101", "ResNet152", "vit_b_16", "vit_b_32", "vit_l_16", "vit_l_32", "vit_h_14", "maxvit_t"], help="_")
+                        choices=["VGG16", "ResNet18", "ResNet50", "ResNet101", "ResNet152",
+                                 "vit_b_16", "vit_b_32", "vit_l_16", "vit_l_32", "vit_h_14",
+                                 "maxvit_t"], help="_")
     parser.add_argument("--fc_output_dim", type=int, default=512,
                         help="Output dimension of final fully connected layer")
     # Training parameters
@@ -34,6 +36,23 @@ def parse_arguments(is_training: bool = True):
     parser.add_argument("--hue", type=float, default=0.5, help="_")
     parser.add_argument("--saturation", type=float, default=0.7, help="_")
     parser.add_argument("--random_resized_crop", type=float, default=0.5, help="_")
+    # Adding parser for new augmentations: gaussian blur and autoaugment
+
+    #TO-DO CHANGE parameters with ones used
+    # Gaussian blur
+    # Later, you can split this string and convert the individual values to integers.
+    parser.add_argument("--kernel-size", type=str, default="5,9", help="_")
+    parser.add_argument("--sigma", type=str, default="0.1,5", help="_")
+    # Auto augment
+    # POLICIES
+    # Added augmentations fro brigtness_factor, contrast_factor and saturation
+    parser.add_argument("--brightness_factor", type=float, default=0.6, help="_")
+    parser.add_argument("--contrast_factor", type=float, default=1.2, help="_")
+    parser.add_argument("--saturation_factor", type=float, default=0.83, help="_")
+    #
+    parser.add_argument("--gamma", type=float, default=0.8, help="_")
+
+
     # Validation / test parameters
     parser.add_argument("--infer_batch_size", type=int, default=16,
                         help="Batch size for inference (validating and testing)")

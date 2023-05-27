@@ -1,4 +1,4 @@
-
+import os
 import sys
 import torch
 import logging
@@ -10,7 +10,7 @@ import torchvision.transforms as T
 
 import test
 import util
-import parser
+import parserCustom
 import commons
 import cosface_loss
 import augmentations
@@ -20,7 +20,7 @@ from datasets.train_dataset import TrainDataset
 
 torch.backends.cudnn.benchmark = True  # Provides a speedup
 
-args = parser.parse_arguments()
+args = parserCustom.parse_arguments()
 start_time = datetime.now()
 args.output_folder = f"logs/{args.save_dir}/{start_time.strftime('%Y-%m-%d_%H-%M-%S')}"
 commons.make_deterministic(args.seed)
@@ -79,13 +79,30 @@ logging.info(f"There are {len(groups[0])} classes for the first group, " +
              f"with batch_size {args.batch_size}, therefore the model sees each class (on average) " +
              f"{args.iterations_per_epoch * args.batch_size / len(groups[0]):.1f} times per epoch")
 
-
+# Adding two new types of Augmentations: GaussianBlur and AutoAugment
 if args.augmentation_device == "cuda":
+    #add treatments to string values
+    # Parse the kernel_size and sigma values from strings to tuples
+    kernel_size = tuple(map(int, args.kernel_size.split(',')))
+    sigma = tuple(map(float, args.sigma.split(',')))
+
+    # for now predefined unchanged policies
+    policies = [T.AutoAugmentPolicy.CIFAR10, T.AutoAugmentPolicy.IMAGENET, T.AutoAugmentPolicy.SVHN]
+
     gpu_augmentation = T.Compose([
             augmentations.DeviceAgnosticColorJitter(brightness=args.brightness,
                                                     contrast=args.contrast,
                                                     saturation=args.saturation,
                                                     hue=args.hue),
+            augmentations.DeviceAgosticAdjustBrightnessContrastSaturation(brightness_factor=args.brightness_factor,
+                                                                          contrast_factor=args.contrast_factor,
+                                                                          saturation_factor=args.saturation_factor),
+            augmentations.DeviceAgnosticRandomPerspective(),
+            augmentations.DeviceAgnosticAdjustGamma(gamma=args.gamma, gain=1.2),
+            augmentations.DeviceAgnosticGaussianBlur(kernel_size,
+                                                     sigma),
+            # Initialize DeviceAgnosticAutoAugment for each policy
+            [augmentations.DeviceAgnosticAutoAugment(policy) for policy in policies],
             augmentations.DeviceAgnosticRandomResizedCrop([512, 512],
                                                           scale=[1-args.random_resized_crop, 1]),
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
@@ -102,12 +119,19 @@ for epoch_num in range(start_epoch_num, args.epochs_num):
     current_group_num = epoch_num % args.groups_num
     classifiers[current_group_num] = classifiers[current_group_num].to(args.device)
     util.move_to_device(classifiers_optimizers[current_group_num], args.device)
-    
-    dataloader = commons.InfiniteDataLoader(groups[current_group_num], num_workers=args.num_workers,
-                                            batch_size=args.batch_size, shuffle=True,
-                                            pin_memory=(args.device == "cuda"), drop_last=True)
-    
-    dataloader_iterator = iter(dataloader)
+
+    try:
+        #num_cpu_cores = os.cpu_count()
+        # Limit the number of workers to the number of CPU cores
+        #args.num_workers = min(args.num_workers, num_cpu_cores)
+        dataloader = commons.InfiniteDataLoader(groups[current_group_num], num_workers=args.num_workers,
+                                                batch_size=args.batch_size, shuffle=True,
+                                                pin_memory=(args.device == "cuda"), drop_last=True)
+        #multiprocessing.freeze_support()  #support for gpu cuda execution using rtx3080
+
+        dataloader_iterator = iter(dataloader)
+    except Exception as e:
+        print(f"The following exception occured {e}")
     model = model.train()
     
     epoch_losses = np.zeros((0, 1), dtype=np.float32)
