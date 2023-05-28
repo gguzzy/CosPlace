@@ -83,8 +83,8 @@ logging.info(f"There are {len(groups[0])} classes for the first group, " +
 if args.augmentation_device == "cuda":
     #add treatments to string values
     # Parse the kernel_size and sigma values from strings to tuples
-    # kernel_size = tuple(map(int, args.kernel_size.split(',')))
-    # sigma = tuple(map(float, args.sigma.split(',')))
+    kernel_size = tuple(map(int, args.kernel_size.split(',')))
+    sigma = tuple(map(float, args.sigma.split(',')))
 
     # for now predefined unchanged policies
     # policies = [T.AutoAugmentPolicy.CIFAR10, T.AutoAugmentPolicy.IMAGENET, T.AutoAugmentPolicy.SVHN]
@@ -101,8 +101,8 @@ if args.augmentation_device == "cuda":
                                                                           saturation_factor=args.saturation_factor),
             augmentations.DeviceAgnosticRandomPerspective(),
             augmentations.DeviceAgnosticAdjustGamma(gamma=args.gamma, gain=1.2),
-            # augmentations.DeviceAgnosticGaussianBlur(kernel_size,
-            #                                          sigma),
+            augmentations.DeviceAgnosticGaussianBlur(kernel_size,
+                                                     sigma),
             # Initialize DeviceAgnosticAutoAugment for each policy
             augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.IMAGENET,
                                                     interpolation=T.InterpolationMode.NEAREST),
