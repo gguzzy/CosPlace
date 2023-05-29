@@ -18,6 +18,11 @@ from cosplace_model import cosplace_network
 from datasets.test_dataset import TestDataset
 from datasets.train_dataset import TrainDataset
 
+# define adversarial loss for domain adaptation
+def adversarial_loss(y_hat, y):
+    return -torch.mean(y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat))
+
+
 torch.backends.cudnn.benchmark = True  # Provides a speedup
 
 args = parserCustom.parse_arguments()
@@ -43,8 +48,9 @@ model = model.to(args.device).train()
 
 #### Optimizer
 criterion = torch.nn.CrossEntropyLoss()
-model_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
-
+#model_optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+#for vit best
+model_optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
 #### Datasets
 groups = [TrainDataset(args, args.train_set_folder, M=args.M, alpha=args.alpha, N=args.N, L=args.L,
                        current_group=n, min_images_per_class=args.min_images_per_class) for n in range(args.groups_num)]
@@ -81,43 +87,55 @@ logging.info(f"There are {len(groups[0])} classes for the first group, " +
 
 # Adding two new types of Augmentations: GaussianBlur and AutoAugment
 if args.augmentation_device == "cuda":
-    #add treatments to string values
     # Parse the kernel_size and sigma values from strings to tuples
-    kernel_size = tuple(map(int, args.kernel_size.split(',')))
-    sigma = tuple(map(float, args.sigma.split(',')))
+    # Check if kernel_size and sigma are already tuples, if not convert them to tuples
+    if isinstance(args.kernel_size, int):
+        kernel_size = (args.kernel_size, args.kernel_size)
+    elif isinstance(args.kernel_size, str):
+        kernel_size = tuple(map(int, args.kernel_size.split(',')))
+    else:
+        kernel_size = args.kernel_size
 
-    # for now predefined unchanged policies
-    # policies = [T.AutoAugmentPolicy.CIFAR10, T.AutoAugmentPolicy.IMAGENET, T.AutoAugmentPolicy.SVHN]
+    if isinstance(args.sigma, float):
+        sigma = (args.sigma, args.sigma)
+    elif isinstance(args.sigma, str):
+        sigma = tuple(map(float, args.sigma.split(',')))
+    else:
+        sigma = args.sigma
 
     gpu_augmentation = T.Compose([
-            augmentations.DeviceAgnosticColorJitter(brightness=args.brightness,
-                                                    contrast=args.contrast,
-                                                    saturation=args.saturation,
-                                                    hue=args.hue),
-            augmentations.DeviceAgnosticRandomResizedCrop([512, 512],
-                                                          scale=[1-args.random_resized_crop, 1]),
-            augmentations.DeviceAgosticAdjustBrightnessContrastSaturation(brightness_factor=args.brightness_factor,
-                                                                          contrast_factor=args.contrast_factor,
-                                                                          saturation_factor=args.saturation_factor),
-            augmentations.DeviceAgnosticRandomPerspective(),
-            augmentations.DeviceAgnosticAdjustGamma(gamma=args.gamma, gain=1.2),
-            augmentations.DeviceAgnosticGaussianBlur(kernel_size,
-                                                     sigma),
-            # Initialize DeviceAgnosticAutoAugment for each policy
-            augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.IMAGENET,
-                                                    interpolation=T.InterpolationMode.NEAREST),
-            augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.CIFAR10,
-                                                   interpolation=T.InterpolationMode.NEAREST),
-            augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.SVHN,
-                                                    interpolation=T.InterpolationMode.NEAREST),
-            T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-        ])
+        augmentations.DeviceAgnosticColorJitter(brightness=args.brightness,
+                                                contrast=args.contrast,
+                                                saturation=args.saturation,
+                                                hue=args.hue),
+        augmentations.DeviceAgnosticRandomResizedCrop([512, 512],
+                                                      scale=[1 - args.random_resized_crop, 1]),
+        augmentations.DeviceAgnosticAdjustBrightnessContrastSaturation(brightness_factor=args.brightness_factor,
+                                                                       contrast_factor=args.contrast_factor,
+                                                                       saturation_factor=args.saturation_factor),
+        augmentations.DeviceAgnosticRandomPerspective(),
+        augmentations.DeviceAgnosticAdjustGamma(gamma=args.gamma, gain=1.2),
+        augmentations.DeviceAgnosticGaussianBlur(kernel_size,
+                                                 sigma),
+        # Initialize DeviceAgnosticAutoAugment for each policy
+        augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.IMAGENET,
+                                                interpolation=T.InterpolationMode.NEAREST),
+        augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.CIFAR10,
+                                                interpolation=T.InterpolationMode.NEAREST),
+        augmentations.DeviceAgnosticAutoAugment(policy=T.AutoAugmentPolicy.SVHN,
+                                                interpolation=T.InterpolationMode.NEAREST),
+        T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+    ])
 
 if args.use_amp16:
     scaler = torch.cuda.amp.GradScaler()
 
+# Domain Discriminator
+domain_discriminator = cosplace_network.DomainDiscriminator(args.backbone)
+domain_discriminator_optimizer = torch.optim.Adam(domain_discriminator.parameters(), lr=args.lr_domain_adapt)
+
 for epoch_num in range(start_epoch_num, args.epochs_num):
-    
+
     #### Train
     epoch_start_time = datetime.now()
     # Select classifier and dataloader according to epoch
@@ -128,27 +146,27 @@ for epoch_num in range(start_epoch_num, args.epochs_num):
     dataloader = commons.InfiniteDataLoader(groups[current_group_num], num_workers=args.num_workers,
                                             batch_size=args.batch_size, shuffle=True,
                                             pin_memory=(args.device == "cuda"), drop_last=True)
-    #multiprocessing.freeze_support()  #support for gpu cuda execution using rtx3080
     dataloader_iterator = iter(dataloader)
 
     model = model.train()
-    
+    domain_discriminator = domain_discriminator.train()
+
     epoch_losses = np.zeros((0, 1), dtype=np.float32)
     for iteration in tqdm(range(args.iterations_per_epoch), ncols=100):
         images, targets, _ = next(dataloader_iterator)
         images, targets = images.to(args.device), targets.to(args.device)
-        
+
         if args.augmentation_device == "cuda":
             images = gpu_augmentation(images)
-        
+
         model_optimizer.zero_grad()
         classifiers_optimizers[current_group_num].zero_grad()
-        
+        domain_discriminator_optimizer.zero_grad()
+
         if not args.use_amp16:
             descriptors = model(images)
             output = classifiers[current_group_num](descriptors, targets)
             loss = criterion(output, targets)
-            loss.backward()
             epoch_losses = np.append(epoch_losses, loss.item())
             del loss, output, images
             model_optimizer.step()
@@ -164,7 +182,24 @@ for epoch_num in range(start_epoch_num, args.epochs_num):
             scaler.step(model_optimizer)
             scaler.step(classifiers_optimizers[current_group_num])
             scaler.update()
-    
+
+        # Adversarial training
+        target_images, _, _ = next(dataloader_iterator)
+        target_images = target_images.to(args.device)
+        target_descriptors = model(target_images)
+        domain_labels = torch.ones(images.size(0)).to(args.device)  # Domain labels for source domain
+        target_domain_labels = torch.zeros(target_images.size(0)).to(args.device)  # Domain labels for target domain
+
+        # Forward pass through the domain discriminator
+        domain_output = domain_discriminator(torch.cat([descriptors, target_descriptors], dim=0))
+
+        # Compute domain adversarial loss
+        domain_loss = adversarial_loss(domain_output, torch.cat([domain_labels, target_domain_labels], dim=0))
+
+        # Backward pass and optimization step for the domain discriminator
+        domain_loss.backward()
+        domain_discriminator_optimizer.step()
+
     classifiers[current_group_num] = classifiers[current_group_num].cpu()
     util.move_to_device(classifiers_optimizers[current_group_num], "cpu")
     

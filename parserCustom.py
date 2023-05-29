@@ -29,6 +29,8 @@ def parse_arguments(is_training: bool = True):
     parser.add_argument("--epochs_num", type=int, default=50, help="_")
     parser.add_argument("--iterations_per_epoch", type=int, default=10000, help="_")
     parser.add_argument("--lr", type=float, default=0.00001, help="_")
+    # Domain adaptation learning rate
+    parser.add_argument("--lr_domain_adapt", type=float, default=0.0001, help="_")
     parser.add_argument("--classifiers_lr", type=float, default=0.01, help="_")
     # Data augmentation
     parser.add_argument("--brightness", type=float, default=0.7, help="_")

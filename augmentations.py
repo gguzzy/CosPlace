@@ -79,7 +79,7 @@ class DeviceAgnosticGaussianBlur(T.GaussianBlur):
 
 # Added adjust brightness, contrast and saturation levels
 
-class DeviceAgosticAdjustBrightnessContrastSaturation():
+class DeviceAgnosticAdjustBrightnessContrastSaturation():
     def __init__(self, brightness_factor: float = 0.65, contrast_factor: float = 1.15, saturation_factor: float = 0.85):
         self.brightness_factor = brightness_factor
         self.contrast_factor = contrast_factor

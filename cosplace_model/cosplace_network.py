@@ -101,3 +101,13 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
     features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
     
     return backbone, features_dim
+
+# Adding domain discriminator for domain adaptation
+class DomainDiscriminator(nn.Module):
+    def __init__(self, backbone: str):
+        super(DomainDiscriminator, self).__init__()
+        assert backbone in CHANNELS_NUM_IN_LAST_CONV, f"backbone must be one of {list(CHANNELS_NUM_IN_LAST_CONV.keys())}"
+        self.fc = nn.Linear(CHANNELS_NUM_IN_LAST_CONV[backbone], 1)
+
+    def forward(self, x):
+        return self.fc(x)
