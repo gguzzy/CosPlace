@@ -33,6 +33,7 @@ class GeoLocalizationNet(nn.Module):
             fc_output_dim (int): the output dimension of the last fc layer, equivalent to the descriptors dimension.
         """
         super().__init__()
+        self.alpha = alpha
         self.domain_adapt = domain_adapt
         assert backbone in CHANNELS_NUM_IN_LAST_CONV, f"backbone must be one of {list(CHANNELS_NUM_IN_LAST_CONV.keys())}"
         self.backbone, features_dim = get_backbone(backbone)
