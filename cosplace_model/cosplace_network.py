@@ -25,7 +25,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
 
 
 class GeoLocalizationNet(nn.Module):
-    def __init__(self, backbone: str, fc_output_dim: int, alpha=None):
+    def __init__(self, backbone: str, fc_output_dim: int, alpha=None, domain_adapt=None):
         """Return a model for GeoLocalization.
         
         Args:
@@ -33,6 +33,7 @@ class GeoLocalizationNet(nn.Module):
             fc_output_dim (int): the output dimension of the last fc layer, equivalent to the descriptors dimension.
         """
         super().__init__()
+        self.domain_adapt = domain_adapt
         assert backbone in CHANNELS_NUM_IN_LAST_CONV, f"backbone must be one of {list(CHANNELS_NUM_IN_LAST_CONV.keys())}"
         self.backbone, features_dim = get_backbone(backbone)
         self.aggregation = nn.Sequential(
@@ -53,7 +54,7 @@ class GeoLocalizationNet(nn.Module):
 
     def forward(self, x):
         x = self.backbone(x)
-        if self.domain_adapt == 'True' and self.aplha is not None:  # we apply dmn adapt
+        if self.domain_adapt is not None and self.alpha is not None:  # we apply dmn adapt
             # Domain, we apply gradient reversal
             x_rev = RevGrad(x)
             da_out = self.DA_aggregation(x_rev)
