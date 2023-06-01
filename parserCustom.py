@@ -19,6 +19,8 @@ def parse_arguments(is_training: bool = True):
                                  "maxvit_t"], help="_")
     parser.add_argument("--fc_output_dim", type=int, default=512,
                         help="Output dimension of final fully connected layer")
+    # Domain adaption
+    parser.add_argument("--domain_adapt", type=str, default="None")
     # Training parameters
     parser.add_argument("--use_amp16", action="store_true",
                         help="use Automatic Mixed Precision")

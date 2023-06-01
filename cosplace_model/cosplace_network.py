@@ -1,14 +1,14 @@
-
 import torch
 import logging
 import torchvision
 from torch import nn
 from typing import Tuple
+from pytorch_revgrad import RevGrad
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
 # The number of channels in the last convolutional layer, the one before average pooling
-#UPDATE: for ViT it corresponds to number of hidden size, dimensionality of patch embeddings
+# UPDATE: for ViT it corresponds to number of hidden size, dimensionality of patch embeddings
 CHANNELS_NUM_IN_LAST_CONV = {
     "ResNet18": 512,
     "ResNet50": 2048,
@@ -25,7 +25,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
 
 
 class GeoLocalizationNet(nn.Module):
-    def __init__(self, backbone : str, fc_output_dim : int):
+    def __init__(self, backbone: str, fc_output_dim: int, alpha=None):
         """Return a model for GeoLocalization.
         
         Args:
@@ -42,26 +42,41 @@ class GeoLocalizationNet(nn.Module):
             nn.Linear(features_dim, fc_output_dim),
             L2Norm()
         )
-    
+        self.DA_aggregation = nn.Sequential(
+            RevGrad(alpha=alpha),
+            L2Norm(),
+            GeM(),
+            Flatten(),
+            nn.Linear(features_dim, fc_output_dim),
+            L2Norm()
+        )
+
     def forward(self, x):
         x = self.backbone(x)
-        x = self.aggregation(x)
-        return x
+        if self.domain_adapt == 'True' and self.aplha is not None:  # we apply dmn adapt
+            # Domain, we apply gradient reversal
+            x_rev = RevGrad(x)
+            da_out = self.DA_aggregation(x_rev)
+            return da_out
+        else:
+            x = self.aggregation(x)  # UTM labels
+            return x
 
 
-def get_pretrained_torchvision_model(backbone_name : str) -> torch.nn.Module:
+def get_pretrained_torchvision_model(backbone_name: str) -> torch.nn.Module:
     """This function takes the name of a backbone and returns the corresponding pretrained
     model from torchvision. Examples of backbone_name are 'VGG16' or 'ResNet18'
     """
     try:  # Newer versions of pytorch require to pass weights=weights_module.DEFAULT
-        weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]), f"{backbone_name}_Weights")
+        weights_module = getattr(__import__('torchvision.models', fromlist=[f"{backbone_name}_Weights"]),
+                                 f"{backbone_name}_Weights")
         model = getattr(torchvision.models, backbone_name.lower())(weights=weights_module.DEFAULT)
     except (ImportError, AttributeError):  # Older versions of pytorch require to pass pretrained=True
         model = getattr(torchvision.models, backbone_name.lower())(pretrained=True)
     return model
 
 
-def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
+def get_backbone(backbone_name: str) -> Tuple[torch.nn.Module, int]:
     backbone = get_pretrained_torchvision_model(backbone_name)
     if backbone_name.startswith("ResNet"):
         for name, child in backbone.named_children():
@@ -71,43 +86,33 @@ def get_backbone(backbone_name : str) -> Tuple[torch.nn.Module, int]:
                 params.requires_grad = False
         logging.debug(f"Train only layer3 and layer4 of the {backbone_name}, freeze the previous ones")
         layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
-    
+
     elif backbone_name == "VGG16":
         layers = list(backbone.features.children())[:-2]  # Remove avg pooling and FC layer
         for layer in layers[:-5]:
             for p in layer.parameters():
                 p.requires_grad = False
         logging.debug("Train last layers of the VGG-16, freeze the previous ones")
-    
-    #UPGRADE: new models below
+
+    # UPGRADE: new models below
     # ViT architectures models, vit_b_16 or VIT_H_14 or vit_b_16
     elif backbone_name.startswith("vit"):
-        layers = list(backbone.children())[:-2] 
+        layers = list(backbone.children())[:-2]
         for layer in layers:
             for params in layer.parameters():
                 params.requires_grad = False
         logging.debug(f"Train only last layer of the {backbone_name}, freezing the previous ones")
 
-        
-    elif backbone_name.startswith("maxvit_t"): ##NOT WORKING
-        layers = list(backbone.children())[:-2] # Remove avg pooling and FC layer
+
+    elif backbone_name.startswith("maxvit_t"):  ##NOT WORKING
+        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
         for x in layers:
             for p in x.parameters():
-                p.requires_grad = False # freeze all the layers except the last three blocks
+                p.requires_grad = False  # freeze all the layers except the last three blocks
         logging.debug("Train last three layers of Swin, freeze the previous ones")
 
     backbone = torch.nn.Sequential(*layers)
-    
+
     features_dim = CHANNELS_NUM_IN_LAST_CONV[backbone_name]
-    
+
     return backbone, features_dim
-
-# Adding domain discriminator for domain adaptation
-class DomainDiscriminator(nn.Module):
-    def __init__(self, backbone: str):
-        super(DomainDiscriminator, self).__init__()
-        assert backbone in CHANNELS_NUM_IN_LAST_CONV, f"backbone must be one of {list(CHANNELS_NUM_IN_LAST_CONV.keys())}"
-        self.fc = nn.Linear(CHANNELS_NUM_IN_LAST_CONV[backbone], 1)
-
-    def forward(self, x):
-        return self.fc(x)
