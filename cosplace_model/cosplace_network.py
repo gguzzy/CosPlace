@@ -3,7 +3,9 @@ import logging
 import torchvision
 from torch import nn
 from typing import Tuple
-from pytorch_revgrad import RevGrad
+#from pytorch_revgrad import RevGrad
+import torch.nn.functional as F
+
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
@@ -23,7 +25,16 @@ CHANNELS_NUM_IN_LAST_CONV = {
     "maxvit_t": 64,
 }
 
+class RevGrad(nn.Module):
+    def __init__(self, dim=1):
+        super(RevGrad, self).__init__()
+        self.dim = dim
 
+    def forward(self, x):
+        return F.normalize(x, p=2.0, dim=self.dim)
+
+    def norm(self):
+        return torch.norm(self.weight.data, p=2.0, dim=self.dim)
 
 class GeoLocalizationNet(nn.Module):
     def __init__(self, backbone: str, fc_output_dim: int, alpha=None, domain_adapt=None):

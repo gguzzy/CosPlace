@@ -19,21 +19,12 @@ from datasets.test_dataset import TestDataset
 from datasets.train_dataset import TrainDataset
 
 import torch.nn as nn
+import torch.nn.functional as F
+
 
 # define adversarial loss for domain adaptation
 # def adversarial_loss(y_hat, y):
 #     return -torch.mean(y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat))
-
-class RevGrad(nn.Module):
-    def __init__(self, dim=1):
-        super(RevGrad, self).__init__()
-        self.dim = dim
-
-    def forward(self, x):
-        return F.normalize(x, p=2.0, dim=self.dim)
-
-    def norm(self):
-        return torch.norm(self.weight.data, p=2.0, dim=self.dim)
 
 torch.backends.cudnn.benchmark = True  # Provides a speedup
 
