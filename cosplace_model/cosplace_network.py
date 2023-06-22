@@ -24,6 +24,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
 }
 
 
+
 class GeoLocalizationNet(nn.Module):
     def __init__(self, backbone: str, fc_output_dim: int, alpha=None, domain_adapt=None):
         """Return a model for GeoLocalization.
@@ -59,6 +60,7 @@ class GeoLocalizationNet(nn.Module):
             # Domain, we apply gradient reversal
             x_rev = RevGrad(x)
             da_out = self.DA_aggregation(x_rev)
+            da_out = self.norm()
             return da_out
         else:
             x = self.aggregation(x)  # UTM labels
