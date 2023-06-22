@@ -26,15 +26,17 @@ CHANNELS_NUM_IN_LAST_CONV = {
 }
 
 class RevGrad(nn.Module):
-    def __init__(self, dim=1):
+    def __init__(self, dim=1, alpha=0.1):
         super(RevGrad, self).__init__()
         self.dim = dim
+        self.alpha = alpha
 
     def forward(self, x):
         return F.normalize(x, p=2.0, dim=self.dim)
 
     def norm(self):
         return torch.norm(self.weight.data, p=2.0, dim=self.dim)
+
 
 class GeoLocalizationNet(nn.Module):
     def __init__(self, backbone: str, fc_output_dim: int, alpha=None, domain_adapt=None):
