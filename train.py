@@ -18,6 +18,7 @@ from cosplace_model import cosplace_network
 from datasets.test_dataset import TestDataset
 from datasets.train_dataset import TrainDataset
 
+import torch.nn as nn
 
 # define adversarial loss for domain adaptation
 # def adversarial_loss(y_hat, y):
