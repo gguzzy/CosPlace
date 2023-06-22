@@ -105,13 +105,12 @@ def get_backbone(backbone_name: str) -> Tuple[torch.nn.Module, int]:
                 params.requires_grad = False
         logging.debug(f"Train only last layer of the {backbone_name}, freezing the previous ones")
 
-
-    elif backbone_name.startswith("maxvit_t"):  ##NOT WORKING
-        layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
-        for x in layers:
-            for p in x.parameters():
-                p.requires_grad = False  # freeze all the layers except the last three blocks
-        logging.debug("Train last three layers of Swin, freeze the previous ones")
+    # elif backbone_name.startswith("maxvit_t"):  ##NOT WORKING
+    #     layers = list(backbone.children())[:-2]  # Remove avg pooling and FC layer
+    #     for x in layers:
+    #         for p in x.parameters():
+    #             p.requires_grad = False  # freeze all the layers except the last three blocks
+    #     logging.debug("Train last three layers of Swin, freeze the previous ones")
 
     backbone = torch.nn.Sequential(*layers)
 

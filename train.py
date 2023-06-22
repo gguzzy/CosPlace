@@ -20,8 +20,8 @@ from datasets.train_dataset import TrainDataset
 
 
 # define adversarial loss for domain adaptation
-def adversarial_loss(y_hat, y):
-    return -torch.mean(y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat))
+# def adversarial_loss(y_hat, y):
+#     return -torch.mean(y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat))
 
 
 torch.backends.cudnn.benchmark = True  # Provides a speedup
@@ -105,7 +105,7 @@ logging.info(f"PROVAPROVA DAY {groups_day[0]} ")
 
 # Dataset night label (0,0,0)
 groups_night = [
-    DATrainDataset(args, "/kaggle/working/data/tokyo_xs/test", M=args.M,
+    DATrainDataset(args, "/kaggle/working/data/tokyo_xs/night_database", M=args.M,
                    alpha=args.alpha, N=args.N, L=args.L,
                    current_group=n, min_images_per_class=args.min_images_per_class, night=True) for n in
     range(args.groups_num)]
