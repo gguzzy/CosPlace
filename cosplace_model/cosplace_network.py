@@ -8,6 +8,8 @@ import torch.nn.functional as F
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
+from pytorch_revgrad import RevGrad
+
 # The number of channels in the last convolutional layer, the one before average pooling
 # UPDATE: for ViT it corresponds to number of hidden size, dimensionality of patch embeddings
 CHANNELS_NUM_IN_LAST_CONV = {
@@ -25,21 +27,21 @@ CHANNELS_NUM_IN_LAST_CONV = {
 }
 
 
-class RevGrad(nn.Module):
-    def __init__(self, dim=1, alpha=0.1):
-        super(RevGrad, self).__init__()
-        self.dim = dim
-        self.alpha = alpha
-
-    def forward(self, x):
-        return F.normalize(x, p=2.0, dim=self.dim)
-
-    def norm(self):
-        return torch.norm(self.weight.data, p=2.0, dim=self.dim)
+# class RevGrad(nn.Module):
+#     def __init__(self, dim=1, alpha=0.1):
+#         super(RevGrad, self).__init__()
+#         self.dim = dim
+#         self.alpha = alpha
+#
+#     def forward(self, x):
+#         return F.normalize(x, p=2.0, dim=self.dim)
+#
+#     def norm(self):
+#         return torch.norm(self.weight.data, p=2.0, dim=self.dim)
 
 
 class GeoLocalizationNet(nn.Module):
-    def __init__(self, backbone: str, fc_output_dim: int, alpha=None, domain_adapt=None):
+    def __init__(self, backbone: str, fc_output_dim: int, alpha: float = None):
         """Return a model for GeoLocalization.
 
         Args:
@@ -48,7 +50,6 @@ class GeoLocalizationNet(nn.Module):
         """
         super().__init__()
         self.alpha = alpha
-        self.domain_adapt = domain_adapt
         assert backbone in CHANNELS_NUM_IN_LAST_CONV, f"backbone must be one of {list(CHANNELS_NUM_IN_LAST_CONV.keys())}"
         self.backbone, features_dim = get_backbone(backbone)
         self.aggregation = nn.Sequential(
@@ -58,8 +59,8 @@ class GeoLocalizationNet(nn.Module):
             nn.Linear(features_dim, fc_output_dim),
             L2Norm()
         )
-        self.DA_aggregation = nn.Sequential(
-            RevGrad(alpha=alpha),
+        self.domain_adapt_aggregation = nn.Sequential(
+            RevGrad(alpha=1.),
             L2Norm(),
             GeM(),
             Flatten(),
@@ -72,9 +73,9 @@ class GeoLocalizationNet(nn.Module):
         if self.domain_adapt is not None and self.alpha is not None:  # we apply dmn adapt
             # Domain, we apply gradient reversal
             x_rev = RevGrad(x)
-            da_out = self.DA_aggregation(x_rev)
-            da_out = self.norm()
-            return da_out
+            domain_adaptation_out = self.domain_adapt_aggregation(x_rev)
+            # domain_adaptation_out = self.norm()
+            return domain_adaptation_out
         else:
             x = self.aggregation(x)  # UTM labels
             return x
