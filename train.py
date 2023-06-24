@@ -33,10 +33,10 @@ logging.info(f"The outputs are being saved in {args.output_folder}")
 #### Model
 if args.domain_adapt == 'True':
     model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim,
-                                                alpha=0.05)
+                                                alpha=0.05, domain_adapt="True")
     logging.info(f"Using domain adaption")
 else:
-    model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim, alpha=None)
+    model = cosplace_network.GeoLocalizationNet(args.backbone, args.fc_output_dim, alpha=None, domain_adapt=None)
     logging.info(f"Using domain adaption")
 
 

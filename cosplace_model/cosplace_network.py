@@ -41,7 +41,7 @@ CHANNELS_NUM_IN_LAST_CONV = {
 
 
 class GeoLocalizationNet(nn.Module):
-    def __init__(self, backbone: str, fc_output_dim: int, alpha: float = None):
+    def __init__(self, backbone: str, fc_output_dim: int, alpha: float = None, domain_adapt: str = None):
         """Return a model for GeoLocalization.
 
         Args:
