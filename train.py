@@ -332,14 +332,14 @@ recalls, recalls_str = test.test(args, test_ds, model, args.num_preds_to_save)
 logging.info(f"{test_ds}: {recalls_str}")
 
 #### Test on tokyo queries
-test_ds_tokyo = TestDataset("/content/drive/MyDrive/MLDL2022/Project3/CosPlace/datasets/tokyo_xs/test", queries_folder="queries_v1",
+test_ds_tokyo = TestDataset("/kaggle/working/data/tokyo_xs/test", queries_folder="queries_v1",
                        positive_dist_threshold=args.positive_dist_threshold)
 logging.info(f"Now testing on the test set TOKYO: {test_ds_tokyo}")
 recalls2, recalls_str2 = test.test(args, test_ds_tokyo, model)
 logging.info(f"{test_ds_tokyo}: {recalls_str2}")
 
 #### Test on tokyo night queries
-test_tokyo_night = TestDataset("/content/drive/MyDrive/MLDL2022/Project3/CosPlace/datasets/toky_night", queries_folder="night",
+test_tokyo_night = TestDataset("/kaggle/working/data/tokyo_xs/night_database", queries_folder="night",
                       positive_dist_threshold=args.positive_dist_threshold)
 logging.info(f"Now testing on the test set TOKYO NIGHT: {test_tokyo_night}")
 recalls3, recalls_str3 = test.test(args, test_tokyo_night, model)
