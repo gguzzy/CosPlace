@@ -18,13 +18,12 @@ from cosplace_model import cosplace_network
 from datasets.test_dataset import TestDataset
 from datasets.train_dataset import TrainDataset
 
-import torch.nn as nn
-import torch.nn.functional as F
-
-
-# define adversarial loss for domain adaptation
-# def adversarial_loss(y_hat, y):
-#     return -torch.mean(y * torch.log(y_hat) + (1 - y) * torch.log(1 - y_hat))
+from pytorch_adapt.containers import Models, Optimizers
+from pytorch_adapt.datasets import DataloaderCreator, get_mnist_mnistm
+from pytorch_adapt.hooks import DANNHook
+from pytorch_adapt.models import Discriminator, mnistC, mnistG
+from pytorch_adapt.utils.common_functions import batch_to_device
+from pytorch_adapt.validators import IMValidator
 
 torch.backends.cudnn.benchmark = True  # Provides a speedup
 
@@ -69,10 +68,7 @@ classifiers = [cosface_loss.MarginCosineProduct(args.fc_output_dim, len(group)) 
 classifiers_optimizers = [torch.optim.AdamW(classifier.parameters(), lr=args.classifiers_lr) for classifier in
                           classifiers]
 
-# # domain discriminator
-# dmn_cls = cosplace_network.DomainDiscriminator(args.backbone)
-# # domain classification optimizers
-# dmn_cls_opts = torch.optim.Adam(dmn_cls.parameters(), lr=args.lr_domain_adapt)
+# Dataset and dataloader for domain adaptation
 
 # How many classes and images for the class label prediction
 logging.info(f"Using {len(groups)} groups")
@@ -86,26 +82,7 @@ test_ds = TestDataset(args.test_set_folder, queries_folder="queries",
 logging.info(f"Validation set: {val_ds}")
 logging.info(f"Test set: {test_ds}")
 
-# domain adaptation dataset labels
-# Dataset day label (1,1,1)
-groups_day = [DATrainDataset(args, args.train_set_folder, M=args.M, alpha=args.alpha, N=args.N, L=args.L,
-                             current_group=n, min_images_per_class=args.min_images_per_class, day=True) for n in
-              range(args.groups_num)]
-# Each group has its own classifier, which depends on the number of classes in the group
-classifiers_day = [cosface_loss.MarginCosineProduct(2, len(group)) for group in groups_day]
-classifiers_optimizers_day = [torch.optim.Adam(classifier.parameters(), lr=args.classifiers_lr) for classifier in
-                              classifiers_day]
-
-# How many classes and images for the day domain label prediction
-logging.info(f"Using {len(groups_day)} groups")
-logging.info(
-    f"The {len(groups_day)} groups have respectively the following number of classes {[len(g) for g in groups_day]}")
-logging.info(
-    f"The {len(groups_day)} groups have respectively the following number of images {[g.get_images_num() for g in groups_day]}")
-
-logging.info(f"PROVAPROVA DAY {groups_day[0]} ")
-
-# Dataset night label (0,0,0)
+# NIGHT DATASET
 groups_night = [
     DATrainDataset(args, "/kaggle/working/data/tokyo_xs/night_database", M=args.M,
                    alpha=args.alpha, N=args.N, L=args.L,
@@ -186,9 +163,7 @@ if args.augmentation_device == "cuda":
 if args.use_amp16:
     scaler = torch.cuda.amp.GradScaler()
 
-# this is the piece of code in which the model training is involved:
-# we need to introduce our 'parse.domain_adapt'=='True'
-
+# If domain adaption is set to True we train
 if args.domain_adapt == 'True':
     # we are inside domain adaptation
     for epoch_num in range(start_epoch_num, args.epochs_num):
@@ -202,13 +177,7 @@ if args.domain_adapt == 'True':
         util.move_to_device(classifiers_optimizers[current_group_num], args.device)
 
         # domain classifiers
-        # day domain classifier
-        classifiers_day[current_group_num] = classifiers_day[current_group_num].to(args.device)
-        util.move_to_device(classifiers_optimizers_day[current_group_num], args.device)
 
-        # night domain classifier
-        classifiers_night[current_group_num] = classifiers_night[current_group_num].to(args.device)
-        util.move_to_device(classifiers_optimizers_night[current_group_num], args.device)
 
         # normal dataloader
         dataloader = commons.InfiniteDataLoader(groups[current_group_num], num_workers=args.num_workers,
@@ -218,18 +187,10 @@ if args.domain_adapt == 'True':
         dataloader_iterator = iter(dataloader)
         model = model.train()
 
-        # day dataloader
-        dataloader_day = commons.InfiniteDataLoader(groups_day[current_group_num], num_workers=args.num_workers,
-                                                    batch_size=1, shuffle=True,
-                                                    pin_memory=(args.device == "cuda"), drop_last=True)
-        dataloader_iterator_day = iter(dataloader_day)
-
-        # night dataloader
-        dataloader_night = commons.InfiniteDataLoader(groups_night[current_group_num], num_workers=args.num_workers,
-                                                      batch_size=1, shuffle=True,
-                                                      pin_memory=(args.device == "cuda"), drop_last=True)
-
-        dataloader_iterator_night = iter(dataloader_night)
+        # Domain dataloaders
+        """
+        Using pytorch adapt we create using DataloaderCreator
+        """
 
         logging.info(f"Dataloader CLASSIC: {len(dataloader)}")
         logging.info(f"Dataloader DAY: {len(dataloader_day)}")
@@ -242,17 +203,13 @@ if args.domain_adapt == 'True':
             images, targets = images.to(args.device), targets.to(args.device)
 
             # images, target day domain labels
-            images_day, targets_day, _ = next(dataloader_iterator_day)
-            images_day, targets_day = images_day.to(args.device), targets_day.to(args.device)
+
 
             # images,target night domain labels
-            images_night, targets_night, _ = next(dataloader_iterator_night)
-            images_night, targets_night = images_night.to(args.device), targets_night.to(args.device)
+
 
             if args.augmentation_device == "cuda":
                 images = gpu_augmentation(images)
-                images_day = gpu_augmentation(images_day)
-                images_night = gpu_augmentation(images_night)
 
             model_optimizer.zero_grad()
             classifiers_optimizers[current_group_num].zero_grad()
@@ -264,23 +221,17 @@ if args.domain_adapt == 'True':
                 loss = criterion(output, targets)
                 loss.backward()  # allows
 
-                # loss day
-                descriptors_day = model(images_day, alpha=0.05)
-                output_day = classifiers_day[current_group_num](descriptors_day, targets_day)
-                loss_day = criterion(output_day, targets_day)
-
-                # loss night
-                descriptors_night = model(images_night, alpha=0.05)
-                output_night = classifiers_night[current_group_num](descriptors_night, targets_night)
-                loss_night = criterion(output_night, targets_night)
-
-                # loss domain
-                loss_domain = loss_night + loss_day
-                loss_domain.backward()
+                # # loss night
+                # descriptors_night = model(images_night, alpha=0.05)
+                # output_night = classifiers_night[current_group_num](descriptors_night, targets_night)
+                # loss_night = criterion(output_night, targets_night)
+                #
+                # # loss domain
+                # loss_domain = loss_night + loss_day
+                # loss_domain.backward()
 
                 epoch_losses = np.append(epoch_losses, loss.item())
-                del loss, loss_night, loss_day, loss_domain, output, output_day, \
-                    output_night, images, images_day, images_night
+                del loss, output, images
                 model_optimizer.step()
                 classifiers_optimizers[current_group_num].step()
             else:  # Use AMP 16
@@ -290,21 +241,21 @@ if args.domain_adapt == 'True':
                     output = classifiers[current_group_num](descriptors, targets)
                     loss = criterion(output, targets)
 
-                    # loss day
-                    descriptors_day = model(images_day, alpha=0.05)
-                    output_day = classifiers_day[current_group_num](descriptors_day, targets_day)
-                    loss_day = criterion(output_day, targets_day)
-
-                    # loss night
-                    descriptors_night = model(images_night, alpha=0.05)
-                    output_night = classifiers_night[current_group_num](descriptors_night, targets_night)
-                    loss_night = criterion(output_night, targets_night)
-
-                    # loss domain
-                    loss_domain = loss_night + loss_day
+                    # # loss day
+                    # descriptors_day = model(images_day, alpha=0.05)
+                    # output_day = classifiers_day[current_group_num](descriptors_day, targets_day)
+                    # loss_day = criterion(output_day, targets_day)
+                    #
+                    # # loss night
+                    # descriptors_night = model(images_night, alpha=0.05)
+                    # output_night = classifiers_night[current_group_num](descriptors_night, targets_night)
+                    # loss_night = criterion(output_night, targets_night)
+                    #
+                    # # loss domain
+                    # loss_domain = loss_night + loss_day
 
                 scaler.scale(loss).backward()
-                scaler.scale(loss_domain).backward()
+                # scaler.scale(loss_domain).backward()
 
                 epoch_losses = np.append(epoch_losses, loss.item())
                 epoch_losses = np.append(epoch_losses, loss_domain.item())
@@ -316,7 +267,7 @@ if args.domain_adapt == 'True':
                 target_domain_labels = torch.zeros(target_images.size(0)).to(
                     args.device)  # Domain labels for target domain
 
-                del loss, loss_night, loss_day, loss_domain, output, output_day, output_night, images, images_day, images_night
+                del loss, output, images
                 scaler.step(model_optimizer)
                 scaler.step(classifiers_optimizers[current_group_num])
                 scaler.update()

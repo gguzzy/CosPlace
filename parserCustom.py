@@ -19,8 +19,11 @@ def parse_arguments(is_training: bool = True):
                                  "maxvit_t"], help="_")
     parser.add_argument("--fc_output_dim", type=int, default=512,
                         help="Output dimension of final fully connected layer")
-    # Domain adaption
-    parser.add_argument("--domain_adapt", type=str, default="None")
+    # Domain adaptation parameters & Data augmentation
+    parser.add_argument("--domain_adapt", type=str, default=None,
+                        help="It turns on Domain Adaptation training")
+    parser.add_argument("--target_dataset_folder", type=str, default=None,
+                        help="Directory's path to the target dataset source")
     # Training parameters
     parser.add_argument("--use_amp16", action="store_true",
                         help="use Automatic Mixed Precision")
@@ -40,10 +43,6 @@ def parse_arguments(is_training: bool = True):
     parser.add_argument("--hue", type=float, default=0.5, help="_")
     parser.add_argument("--saturation", type=float, default=0.7, help="_")
     parser.add_argument("--random_resized_crop", type=float, default=0.5, help="_")
-    # Adding parser for new augmentations: gaussian blur and autoaugment
-
-    #TO-DO CHANGE parameters with ones used
-    # Gaussian blur
     # Later, you can split this string and convert the individual values to integers.
     parser.add_argument("--kernel-size", type=str, default="5,9", help="_")
     parser.add_argument("--sigma", type=str, default="0.1,5", help="_")
@@ -83,9 +82,9 @@ def parse_arguments(is_training: bool = True):
                         help="path of the folder with train/val/test sets")
     parser.add_argument("--save_dir", type=str, default="default",
                         help="name of directory on which to save the logs, under logs/save_dir")
-    
+
     args = parser.parse_args()
-    
+
     if args.dataset_folder is None:
         try:
             args.dataset_folder = os.environ['SF_XL_PROCESSED_FOLDER']
@@ -93,21 +92,21 @@ def parse_arguments(is_training: bool = True):
             raise Exception("You should set parameter --dataset_folder or export " +
                             "the SF_XL_PROCESSED_FOLDER environment variable as such \n" +
                             "export SF_XL_PROCESSED_FOLDER=/path/to/sf_xl/processed")
-    
+
     if not os.path.exists(args.dataset_folder):
         raise FileNotFoundError(f"Folder {args.dataset_folder} does not exist")
-    
+
     if is_training:
         args.train_set_folder = os.path.join(args.dataset_folder, "train")
         if not os.path.exists(args.train_set_folder):
             raise FileNotFoundError(f"Folder {args.train_set_folder} does not exist")
-        
+
         args.val_set_folder = os.path.join(args.dataset_folder, "val")
         if not os.path.exists(args.val_set_folder):
             raise FileNotFoundError(f"Folder {args.val_set_folder} does not exist")
-    
+
     args.test_set_folder = os.path.join(args.dataset_folder, "test")
     if not os.path.exists(args.test_set_folder):
         raise FileNotFoundError(f"Folder {args.test_set_folder} does not exist")
-    
+
     return args
