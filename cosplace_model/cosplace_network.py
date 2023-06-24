@@ -63,10 +63,6 @@ class GeoLocalizationNet(nn.Module):
         try:
             self.domain_adapt_aggregation = nn.Sequential(
                 RevGrad(),
-                GeM(),
-                Flatten(),
-                nn.Linear(features_dim, fc_output_dim),
-                L2Norm()
             )
         except Exception as e:
             logging.info(f"Error while handling domain adaption task in " + e)

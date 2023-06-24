@@ -6,7 +6,7 @@ from torch.nn.parameter import Parameter
 
 
 def gem(x, p=torch.ones(1)*3, eps: float = 1e-6):
-    return F.avg_pool2d(x.clamp_min(eps).pow(p), (x.size(-2), x.size(-1))).pow(1. / p)
+    return F.avg_pool2d(x.clamp(min=eps).pow(p), (x.size(-2), x.size(-1))).pow(1./p)
 
 
 class GeM(nn.Module):
