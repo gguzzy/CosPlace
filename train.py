@@ -332,7 +332,7 @@ recalls, recalls_str = test.test(args, test_ds, model, args.num_preds_to_save)
 logging.info(f"{test_ds}: {recalls_str}")
 
 #### Test on tokyo queries
-test_ds_tokyo = TestDataset("/kaggle/working/data/tokyo_xs/test", queries_folder="queries_v1",
+test_ds_tokyo = TestDataset("/kaggle/working/data/tokyo_xs/test", queries_folder="queries",
                        positive_dist_threshold=args.positive_dist_threshold)
 logging.info(f"Now testing on the test set TOKYO: {test_ds_tokyo}")
 recalls2, recalls_str2 = test.test(args, test_ds_tokyo, model)
