@@ -90,7 +90,7 @@ logging.info(f"The {len(groups_day)} groups have respectively the following numb
 logging.info(f"Day sunny trial group: {groups_day[0]} ")
 
 #Dataset night label (0,0,0)
-groups_night = [TrainDataset(args, "/content/drive/MyDrive/MLDL2022/Project3/CosPlace/datasets/toky_night/night",
+groups_night = [TrainDataset(args, "/kaggle/working/data/tokyo_xs/night",
                              M=args.M, alpha=args.alpha, N=args.N, L=args.L, current_group=n,
                              min_images_per_class=args.min_images_per_class, night=True) \
                 for n in range(args.groups_num)]
