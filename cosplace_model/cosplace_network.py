@@ -62,7 +62,7 @@ class GeoLocalizationNet(nn.Module):
         )
         try:
             self.domain_adapt_aggregation = nn.Sequential(
-                RevGrad(alpha=1.),
+                RevGrad(),
                 L2Norm(),
                 GeM(),
                 Flatten(),
