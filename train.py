@@ -200,13 +200,13 @@ if args.domain_adapt == 'True':
 
         # day dataloader
         dataloader_day = commons.InfiniteDataLoader(groups_day[current_group_num], num_workers=args.num_workers,
-                                                    batch_size=1, shuffle=True,
+                                                    batch_size=args.batch_size, shuffle=True,
                                                     pin_memory=(args.device == "cuda"), drop_last=True)
         dataloader_iterator_day = iter(dataloader_day)
 
         # night dataloader
         dataloader_night = commons.InfiniteDataLoader(groups_night[current_group_num], num_workers=args.num_workers,
-                                                      batch_size=1, shuffle=True,
+                                                      batch_size=args.batch_size, shuffle=True,
                                                       pin_memory=(args.device == "cuda"), drop_last=True)
 
         dataloader_iterator_night = iter(dataloader_night)
