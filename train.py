@@ -339,7 +339,7 @@ recalls2, recalls_str2 = test.test(args, test_ds_tokyo, model)
 logging.info(f"{test_ds_tokyo}: {recalls_str2}")
 
 #### Test on tokyo night queries
-test_tokyo_night = TestDataset("/kaggle/working/data/tokyo_xs/night_database", queries_folder="night",
+test_tokyo_night = TestDataset("/kaggle/working/data/tokyo_xs/night", queries_folder="night",
                       positive_dist_threshold=args.positive_dist_threshold)
 logging.info(f"Now testing on the test set TOKYO NIGHT: {test_tokyo_night}")
 recalls3, recalls_str3 = test.test(args, test_tokyo_night, model)
