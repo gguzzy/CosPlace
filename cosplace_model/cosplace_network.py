@@ -60,14 +60,17 @@ class GeoLocalizationNet(nn.Module):
             nn.Linear(features_dim, fc_output_dim),
             L2Norm()
         )
-        self.domain_adapt_aggregation = nn.Sequential(
-            RevGrad(alpha=1.),
-            L2Norm(),
-            GeM(),
-            Flatten(),
-            nn.Linear(features_dim, fc_output_dim),
-            L2Norm()
-        )
+        try:
+            self.domain_adapt_aggregation = nn.Sequential(
+                RevGrad(alpha=1.),
+                L2Norm(),
+                GeM(),
+                Flatten(),
+                nn.Linear(features_dim, fc_output_dim),
+                L2Norm()
+            )
+        except Exception as e:
+            logging.info(f"Error while handling domain adaption task in " + e)
 
     def forward(self, x):
         x = self.backbone(x)
