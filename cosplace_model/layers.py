@@ -37,4 +37,4 @@ class L2Norm(nn.Module):
         self.dim = dim
     
     def forward(self, x):
-        return F.normalize(x, p=2.0, dim=self.dim)
+        return F.normalize(x, p=2, dim=self.dim)
