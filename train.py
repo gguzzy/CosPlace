@@ -274,12 +274,12 @@ if args.domain_adapt == 'True':
                     loss = criterion(output, targets)
 
                     # loss day
-                    descriptors_day = model(images_day, alpha=0.05)
+                    descriptors_day = model(images_day)
                     output_day = classifiers_day[current_group_num](descriptors_day, targets_day)
                     loss_day = criterion(output_day, targets_day)
 
                     # loss night
-                    descriptors_night = model(images_night, alpha=0.05)
+                    descriptors_night = model(images_night)
                     output_night = classifiers_night[current_group_num](descriptors_night, targets_night)
                     loss_night = criterion(output_night, targets_night)
 
