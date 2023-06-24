@@ -79,7 +79,7 @@ logging.info(f"Test set: {test_ds}")
 groups_day = [TrainDataset(args, args.train_set_folder, M=args.M, alpha=args.alpha, N=args.N, L=args.L,
                        current_group=n, min_images_per_class=args.min_images_per_class, day = True) for n in range(args.groups_num)]
 # Each group has its own classifier, which depends on the number of classes in the group
-classifiers_day = [cosface_loss.MarginCosineProduct(2, len(group)) for group in groups_day]
+classifiers_day = [cosface_loss.MarginCosineProduct(args.fc_output_dim, len(group)) for group in groups_day]
 classifiers_optimizers_day = [torch.optim.Adam(classifier.parameters(), lr=args.classifiers_lr) for classifier in classifiers_day]
 
 #How many classes and images for the day domain label prediction
@@ -95,7 +95,7 @@ groups_night = [TrainDataset(args, "/content/drive/MyDrive/MLDL2022/Project3/Cos
                              min_images_per_class=args.min_images_per_class, night=True) \
                 for n in range(args.groups_num)]
 # Each group has its own classifier, which depends on the number of classes in the group1
-classifiers_night = [cosface_loss.MarginCosineProduct(2, len(group)) for group in groups_night]
+classifiers_night = [cosface_loss.MarginCosineProduct(args.fc_output_dim, len(group)) for group in groups_night]
 classifiers_optimizers_night = [torch.optim.Adam(classifier.parameters(), lr=args.classifiers_lr) for classifier in classifiers_night]
 
 #How many classes and images for the night domain label prediction
