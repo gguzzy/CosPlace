@@ -8,7 +8,18 @@ import torch.nn.functional as F
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
-from pytorch_revgrad import RevGrad
+class RevGrad(nn.Module):
+    def __init__(self, alpha):
+        super().__init__()
+        self.alpha = alpha
+
+    def forward(self, x):
+        return x * self.alpha
+
+    def backward(self, grad_output):
+        grad_input = grad_output.neg() * self.alpha
+        return grad_input
+
 
 # The number of channels in the last convolutional layer, the one before average pooling
 # UPDATE: for ViT it corresponds to number of hidden size, dimensionality of patch embeddings
@@ -62,22 +73,16 @@ class GeoLocalizationNet(nn.Module):
         )
         try:
             self.domain_adapt_aggregation = nn.Sequential(
-                RevGrad(),
+                RevGrad(alpha=self.alpha),
+                L2Norm(),
+                GeM(),
+                Flatten(),
+                nn.Linear(features_dim, fc_output_dim),
+                L2Norm()
             )
         except Exception as e:
-            logging.info(f"Error while handling domain adaption task in " + e)
+            logging.info(f"Errore durante la gestione dell'adattamento del dominio in " + str(e))
 
-    def forward(self, x):
-        x = self.backbone(x)
-        if self.domain_adapt is not None and self.alpha is not None:  # we apply dmn adapt
-            # Domain, we apply gradient reversal
-            x_rev = RevGrad(x)
-            domain_adaptation_out = self.domain_adapt_aggregation(x_rev)
-            # domain_adaptation_out = self.norm()
-            return domain_adaptation_out
-        else:
-            x = self.aggregation(x)  # UTM labels
-            return x
 
 
 def get_pretrained_torchvision_model(backbone_name: str) -> torch.nn.Module:
