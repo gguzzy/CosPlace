@@ -8,17 +8,28 @@ import torch.nn.functional as F
 
 from cosplace_model.layers import Flatten, L2Norm, GeM
 
+from torch.autograd import Function
+
+class GradientReversalFunction(Function):
+    @staticmethod
+    def forward(ctx, x, alpha):
+        ctx.alpha = alpha
+        return x.view_as(x)
+
+    @staticmethod
+    def backward(ctx, grad_output):
+        output = grad_output.neg() * ctx.alpha
+        return output, None
+
+
 class RevGrad(nn.Module):
     def __init__(self, alpha):
         super().__init__()
         self.alpha = alpha
 
     def forward(self, x):
-        return x * self.alpha
+        return GradientReversalFunction.apply(x, self.alpha)
 
-    def backward(self, grad_output):
-        grad_input = grad_output.neg() * self.alpha
-        return grad_input
 
 
 # The number of channels in the last convolutional layer, the one before average pooling
@@ -83,6 +94,17 @@ class GeoLocalizationNet(nn.Module):
         except Exception as e:
             logging.info(f"Errore durante la gestione dell'adattamento del dominio in " + str(e))
 
+    def forward(self, x):
+        x = self.backbone(x)
+        if self.domain_adapt is not None and self.alpha is not None:  # applichiamo l'adattamento del dominio
+            # Dominio, applichiamo l'inversione del gradiente
+            revgrad = RevGrad(self.alpha)
+            x_rev = revgrad(x)
+            domain_adaptation_out = self.domain_adapt_aggregation(x_rev)
+            return domain_adaptation_out
+        else:
+            x = self.aggregation(x)  # etichette UTM
+            return x
 
 
 def get_pretrained_torchvision_model(backbone_name: str) -> torch.nn.Module:
